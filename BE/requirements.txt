@@ -1,0 +1,46 @@
+# Flask and web framework
+Flask==3.0.0
+Flask-CORS==4.0.0
+
+# Firebase
+firebase-admin==6.3.0
+
+# Authentication
+pyjwt[crypto]==2.8.0
+cryptography==41.0.7
+
+# PowerPoint generation
+python-pptx==0.6.23
+
+# HTTP requests
+requests==2.31.0
+
+# Environment variables
+python-dotenv==1.0.0
+
+# Image processing
+Pillow==10.1.0
+
+# AI APIs
+anthropic==0.21.0
+groq==0.9.0
+
+# Document parsing
+PyPDF2==3.0.1
+python-docx==1.1.0
+
+# Web scraping
+beautifulsoup4==4.12.2
+lxml==4.9.3
+wikipedia==1.4.0
+
+# Data processing
+pandas==2.1.4
+openpyxl==3.1.2
+
+# Testing
+pytest==7.4.3
+pytest-mock==3.12.0
+
+# Logging
+python-json-logger==2.0.7

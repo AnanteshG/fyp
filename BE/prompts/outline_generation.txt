@@ -1,0 +1,30 @@
+Create a detailed, engaging presentation outline for the topic: "{topic}"
+
+Generate exactly {max_slides} content slides with comprehensive information.
+
+Requirements:
+- Make the content engaging, informative, and well-structured
+- Each slide should have 3-5 bullet points
+- Include relevant keywords for image search
+- Add detailed speaker notes for each slide
+- Ensure logical flow between slides
+
+Return ONLY valid JSON in this exact format:
+{{
+    "title": "Compelling Presentation Title",
+    "slides": [
+        {{
+            "slide_number": 1,
+            "title": "Engaging Slide Title",
+            "content": [
+                "Clear, concise bullet point",
+                "Another insightful point",
+                "Third key point"
+            ],
+            "image_keywords": "relevant keywords for finding images",
+            "speaker_notes": "Detailed notes about what the presenter should discuss for this slide. Include key talking points, examples, and transitions."
+        }}
+    ]
+}}
+
+Make sure all {max_slides} slides are included. No additional text outside the JSON.

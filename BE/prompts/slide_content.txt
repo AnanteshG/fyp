@@ -1,0 +1,25 @@
+Generate detailed, engaging content for a presentation slide.
+
+Slide Title: "{slide_title}"
+
+Presentation Context: {context}
+
+Requirements:
+- Create 3-5 clear, concise bullet points
+- Make bullet points actionable and informative
+- Add comprehensive speaker notes
+- Ensure content is presentation-ready
+
+Return ONLY valid JSON in this exact format:
+{{
+    "bullets": [
+        "First key point - clear and actionable",
+        "Second important point with specific details",
+        "Third point providing value",
+        "Optional fourth point if needed",
+        "Optional fifth point for completeness"
+    ],
+    "speaker_notes": "Comprehensive notes for the presenter. Include: 1) Introduction to the slide topic, 2) Detailed explanation of each bullet point, 3) Examples or anecdotes to illustrate points, 4) Transition to next slide. Keep professional but conversational."
+}}
+
+No additional text outside the JSON.

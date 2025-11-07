@@ -1,0 +1,16 @@
+Summarize the following text into clear, concise content suitable for presentation slides.
+
+Target Length: Approximately {max_length} words
+
+Text to Summarize:
+{text}
+
+Requirements:
+- Extract the most important information
+- Maintain key facts and figures
+- Use clear, professional language
+- Make it suitable for presentation slides
+- Keep it concise but comprehensive
+- Preserve the main message and key points
+
+Provide only the summary, no additional commentary.
