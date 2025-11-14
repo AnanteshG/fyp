@@ -5,9 +5,14 @@ Handles user presentations history
 from flask import Blueprint, request, jsonify
 import logging
 from auth import require_auth
-from services.firebase_service import firebase_service
+from services.firebase_service import FirebaseService
 
 logger = logging.getLogger(__name__)
+
+history_bp = Blueprint('history', __name__)
+
+# Initialize Firebase service
+firebase_service = FirebaseService()
 
 history_bp = Blueprint('history', __name__)
 

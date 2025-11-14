@@ -4,6 +4,7 @@ Handles Firebase Admin SDK initialization, authentication, Firestore, and Storag
 """
 import os
 import logging
+import time
 from datetime import datetime
 import firebase_admin
 from firebase_admin import credentials, auth, firestore, storage
@@ -39,6 +40,7 @@ class FirebaseService:
                 self.bucket = storage.bucket('fy-project-518d9.appspot.com')
                 return
             
+            # service-key.json is in the BE directory (parent of services folder)
             service_key_path = os.path.join(
                 os.path.dirname(os.path.dirname(__file__)), 
                 'service-key.json'
@@ -111,7 +113,7 @@ class FirebaseService:
     
     def upload_image(self, image_path: str, destination_path: str) -> Optional[str]:
         """
-        Upload image to Firebase Storage
+        Upload image to Firebase Storage with retry logic
         
         Args:
             image_path: Local path to image file
@@ -120,24 +122,42 @@ class FirebaseService:
         Returns:
             Public URL of uploaded image or None if failed
         """
-        try:
-            blob = self.bucket.blob(destination_path)
-            blob.upload_from_filename(image_path)
-            
-            # Make public and get URL
-            blob.make_public()
-            public_url = blob.public_url
-            
-            logger.info(f"Uploaded image to {destination_path}")
-            return public_url
-            
-        except Exception as e:
-            logger.error(f"Failed to upload image: {e}")
-            return None
+        max_retries = 3
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                blob = self.bucket.blob(destination_path)
+                blob.upload_from_filename(image_path)
+                
+                # Make public and get URL
+                blob.make_public()
+                public_url = blob.public_url
+                
+                logger.info(f"Uploaded image to {destination_path}")
+                return public_url
+                
+            except Exception as e:
+                retry_count += 1
+                error_msg = str(e)
+                
+                # Check if it's a credential refresh error
+                if 'invalid_grant' in error_msg or 'Bad Request' in error_msg:
+                    logger.warning(f"Credential refresh error on attempt {retry_count}/{max_retries}. Retrying...")
+                    if retry_count < max_retries:
+                        # Wait before retrying
+                        time.sleep(2 ** retry_count)  # Exponential backoff
+                        continue
+                
+                logger.error(f"Failed to upload image: {e}")
+                return None
+        
+        logger.error(f"Failed to upload image after {max_retries} attempts")
+        return None
     
     def upload_image_from_bytes(self, image_bytes: bytes, destination_path: str, content_type: str = 'image/jpeg') -> Optional[str]:
         """
-        Upload image from bytes to Firebase Storage
+        Upload image from bytes to Firebase Storage with retry logic
         
         Args:
             image_bytes: Image data as bytes
@@ -147,20 +167,38 @@ class FirebaseService:
         Returns:
             Public URL of uploaded image or None if failed
         """
-        try:
-            blob = self.bucket.blob(destination_path)
-            blob.upload_from_string(image_bytes, content_type=content_type)
-            
-            # Make public and get URL
-            blob.make_public()
-            public_url = blob.public_url
-            
-            logger.info(f"Uploaded image bytes to {destination_path}")
-            return public_url
-            
-        except Exception as e:
-            logger.error(f"Failed to upload image bytes: {e}")
-            return None
+        max_retries = 3
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                blob = self.bucket.blob(destination_path)
+                blob.upload_from_string(image_bytes, content_type=content_type)
+                
+                # Make public and get URL
+                blob.make_public()
+                public_url = blob.public_url
+                
+                logger.info(f"Uploaded image bytes to {destination_path}")
+                return public_url
+                
+            except Exception as e:
+                retry_count += 1
+                error_msg = str(e)
+                
+                # Check if it's a credential refresh error
+                if 'invalid_grant' in error_msg or 'Bad Request' in error_msg:
+                    logger.warning(f"Credential refresh error on attempt {retry_count}/{max_retries}. Retrying...")
+                    if retry_count < max_retries:
+                        # Wait before retrying
+                        time.sleep(2 ** retry_count)  # Exponential backoff
+                        continue
+                
+                logger.error(f"Failed to upload image bytes: {e}")
+                return None
+        
+        logger.error(f"Failed to upload image bytes after {max_retries} attempts")
+        return None
     
     def delete_image(self, storage_path: str) -> bool:
         """Delete image from Firebase Storage"""
@@ -332,15 +370,20 @@ class FirebaseService:
             presentations = []
             for doc in docs:
                 data = doc.to_dict()
+                # Get thumbnail from first slide's Firebase image
+                thumbnail = None
+                if data.get('slides'):
+                    thumbnail = data['slides'][0].get('image_firebase_url') or data['slides'][0].get('image_path')
+                
                 # Return summary without full slide content
                 presentations.append({
                     'ppt_id': data.get('ppt_id'),
                     'topic': data.get('topic'),
                     'theme': data.get('theme'),
-                    'slide_count': data.get('slide_count', 0),
+                    'slide_count': data.get('slide_count', len(data.get('slides', []))),
                     'created_at': data.get('created_at'),
                     'updated_at': data.get('updated_at'),
-                    'thumbnail': data.get('slides', [{}])[0].get('image_url') if data.get('slides') else None
+                    'thumbnail': thumbnail
                 })
             
             return presentations

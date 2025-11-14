@@ -5,6 +5,7 @@ Handles presentation generation from topic/text/URLs/Wikipedia
 from flask import Blueprint, request, jsonify
 import logging
 import os
+import uuid
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -15,6 +16,7 @@ from services.pixabay import PixabayClient
 from services.ppt_service import PPTService
 from services.web_scraper import WebScraper
 from services.wikipedia_service import WikipediaService
+from services.firebase_service import FirebaseService
 from storage import ppt_storage
 
 logger = logging.getLogger(__name__)
@@ -160,10 +162,15 @@ def generate_ppt():
         
         presentation_data = ai_client.generate_presentation_structure(context_topic, slide_count)
         
+        # Generate presentation ID before fetching images
+        ppt_id = str(uuid.uuid4())
+        user_id = getattr(request, 'user_id', 'anonymous')
+        
         # Fetch images from Pixabay if API key available
         image_paths = {}
+        image_firebase_urls = {}
         suggested_images_by_slide = {}
-        user_id = getattr(request, 'user_id', 'anonymous')
+        firebase_service = FirebaseService()
         
         if os.getenv('PIXABAY_API_KEY'):
             try:
@@ -188,6 +195,16 @@ def generate_ppt():
                         if pixabay.download_image(best_img['webformat_url'], img_path2):
                             # Store backend path for PPT generation
                             image_paths[slide_num] = img_path
+                            
+                            # Upload to Firebase Storage
+                            try:
+                                firebase_storage_path = f"presentations/{user_id}/{ppt_id}/slide_{slide_num}.jpg"
+                                firebase_url = firebase_service.upload_image(img_path2, firebase_storage_path)
+                                if firebase_url:
+                                    image_firebase_urls[slide_num] = firebase_url
+                                    logger.info(f"Uploaded slide {slide_num} to Firebase: {firebase_storage_path}")
+                            except Exception as e:
+                                logger.error(f"Failed to upload slide {slide_num} to Firebase: {e}")
                 
                 logger.info(f"Fetched images for {len(image_paths)} slides")
             except Exception as e:
@@ -202,7 +219,8 @@ def generate_ppt():
         for slide in presentation_data.get('slides', []):
             slide_num = slide.get('slide_number', slide.get('index', 0) + 1)
             
-            # Use temp_images path for display
+            # Use Firebase URL if available, otherwise fallback to local path
+            image_firebase_url = image_firebase_urls.get(slide_num)
             image_url = f'/temp_images/slide_{slide_num}.jpg' if image_paths.get(slide_num) else None
             
             slides_response.append({
@@ -213,7 +231,8 @@ def generate_ppt():
                 'speaker_notes': slide.get('speaker_notes', ''),
                 'layout': 'content',
                 'suggested_images': suggested_images_by_slide.get(slide_num, []),
-                'image_path': image_url
+                'image_path': image_url,
+                'image_firebase_url': image_firebase_url
             })
         
         # Update presentation data with formatted slides
@@ -226,11 +245,29 @@ def generate_ppt():
             'slides': slides_response,
             'ppt_bytes': ppt_bytes,
             'image_paths': image_paths,
+            'image_firebase_urls': image_firebase_urls,
             'content_sources': content_sources,
             'user_id': user_id
         }
         
-        ppt_id = ppt_storage.create(ppt_metadata)
+        # Store in local storage
+        ppt_storage.create(ppt_metadata)
+        
+        # Also store in Firestore with Firebase image URLs
+        try:
+            firebase_service.create_presentation(user_id, {
+                'ppt_id': ppt_id,
+                'topic': topic,
+                'theme': theme,
+                'slides': slides_response,  # Includes Firebase URLs
+                'image_firebase_urls': image_firebase_urls,
+                'content_sources': content_sources,
+                'brand_colors': brand_colors
+            })
+            logger.info(f"Presentation stored in Firestore with ID: {ppt_id}")
+        except Exception as e:
+            logger.error(f"Failed to store presentation in Firestore: {e}")
+        
         logger.info(f"PPT generated successfully with ID: {ppt_id}")
         
         return jsonify({
